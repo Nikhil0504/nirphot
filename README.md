@@ -25,3 +25,11 @@ Available recipes:
     tag-version       # Create git tag from current version if it doesn't exist
     version           # Show current version
 ```
+
+Scripts:
+You can access the webbpsf's script to make webbpsfs using:
+```bash
+$ uv run webbpsfs file.fits F200W output_folder psf_out
+
+$ uv run webbpsfs -h # for getting the other optional parameters
+```
