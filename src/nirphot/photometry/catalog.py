@@ -11,6 +11,8 @@ from photutils.background import Background2D
 from photutils.segmentation import SourceFinder, SourceCatalog, make_2dgaussian_kernel
 from photutils.utils import calc_total_error
 
+from scipy.ndimage import binary_dilation
+
 from nirphot.paths import DATA_DIR, PLOT_DIR
 from nirphot.utils import generate_filename
 
@@ -23,9 +25,10 @@ logger = logging.getLogger(__name__)
 JWST_UNITS = u.MJy / u.sr
 
 class PhotometryDetectionCatalog:
-    def __init__(self, detection_file, weight_file, run='run', verbose=True):
+    def __init__(self, detection_file, weight_file, run='run', verbose=True, save=True):
         self.verbose = verbose
         self.run = run
+        self.save = save
 
         self.detection_file = detection_file
         self.weight_file = weight_file
@@ -35,6 +38,9 @@ class PhotometryDetectionCatalog:
         self.detection_data = self.detection_hdu[0].data
         self.weight_data = self.weight_hdu[0].data
         self.convolved_image_data = self._smooth_img()
+        
+        self.detection_img_mask = np.isnan(self.detection_data)
+        self.detection_img_mask = binary_dilation(self.detection_img_mask, iterations=10)
 
         self.imwcs = wcs.WCS(self.detection_hdu[0].header)
         
@@ -64,22 +70,23 @@ class PhotometryDetectionCatalog:
             logger.info("Detecting sources...")
 
         self.segmentation_map = finder(self.convolved_image_data, detection_threshold)
-
-        # save segmentation map
-        segmentation_hdu = fits.PrimaryHDU(self.segmentation_map)
-        segmentation_hdu.header.update(self.imwcs.to_header())
         
-        fp = generate_filename(f'{self.run}_segmentation_map', 'fits', DATA_DIR)
-        segmentation_hdu.writeto(fp, overwrite=True)
+        if self.save:
+            # save segmentation map
+            segmentation_hdu = fits.PrimaryHDU(self.segmentation_map)
+            segmentation_hdu.header.update(self.imwcs.to_header())
+            
+            fp = generate_filename(f'{self.run}_segmentation_map', 'fits', DATA_DIR)
+            segmentation_hdu.writeto(fp, overwrite=True)
+            
+            segmentation_regions = self.segmentation_map.to_regions() 
+            segmentation_regions.write(fp.replace('.fits', '.reg'), format="ds9")
         
         if self.verbose:
             logger.info(f"Detected {self.segmentation_map.nlabels} sources")
             logger.info("Segmentation map saved.")
        
-        segmentation_regions = self.segmentation_map.to_regions() 
-        segmentation_regions.write(fp.replace('.fits', '.reg'), format="ds9")
-        
-        
+
     def measure_source_properties(self, exposure_time, local_background_width=24):
         # "effective_gain" = exposure time map (conversion from data rate units to counts)
         # weight = inverse variance map = 1 / sigma_background**2 (without sources)
@@ -113,6 +120,13 @@ class PhotometryDetectionCatalog:
             self.catalog_table[aperture+'_fluxerr'] = fluxerr
             self.catalog_table[aperture+'_mag']     = mag
             self.catalog_table[aperture+'_magerr']  = magerr
-            
-        fp_catalog = generate_filename(f'{self.run}_catalog', 'ecsv', DATA_DIR)
-        self.catalog_table.write(fp_catalog, format='ascii.ecsv')
+        
+        self.catalog_table.rename_column('label', 'id')
+        self.catalog_table.rename_column('semimajor_sigma', 'a')
+        self.catalog_table.rename_column('semiminor_sigma', 'b')
+        self.catalog_table.rename_column('xcentroid', 'x')
+        self.catalog_table.rename_column('ycentroid', 'y')
+        
+        if self.save:
+            fp_catalog = generate_filename(f'{self.run}_detection_catalog', 'ecsv', DATA_DIR)
+            self.catalog_table.write(fp_catalog, format='ascii.ecsv')
