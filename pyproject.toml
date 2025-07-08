@@ -1,6 +1,6 @@
 [project]
 name = "nirphot"
-version = "0.1.1"
+version = "0.1.2"
 description = "Developing a photometry pipeline for JWST NIRCam"
 readme = "README.md"
 authors = [
