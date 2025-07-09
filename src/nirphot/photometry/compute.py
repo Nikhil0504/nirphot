@@ -4,6 +4,7 @@ from nirphot.utils import generate_filename
 from nirphot.paths import DATA_DIR
 
 import numpy as np
+import astropy.units as u
 
 
 class ComputePhotometry:
@@ -17,6 +18,8 @@ class ComputePhotometry:
         self.run = run
 
         self.filters = sci_images.keys()
+        self.wavelengths = np.array([int(filt[1:4]) / 100 for filt in self.filters]) * u.um  # e.g., F115W = 1.15 microns
+
 
         self.detection_image = self.sci_images[self.detection_filter]
         self.wht_image = self.wht_images[self.detection_filter]
@@ -110,6 +113,7 @@ class ComputePhotometry:
         ].info.format = ".0f"  # 'd' raises error : incompatible with units (pix2)
 
     def _add_flux_corrections(self):
+        # Aperture corrections: isophotal to total (Kron aperture) fluxes
         # Color corrections are perfomed as described here: https://www.stsci.edu/~dcoe/ColorPro/color
 
         reference_flux_auto = self.source_table['kron_flux']    # Kron total flux estimate
@@ -124,3 +128,17 @@ class ComputePhotometry:
             #total_flux_table[filt+'_mag'] = total_flux_table[filt+'_flux'].to(u.ABmag)  # doesn't handle non-detections
             self.source_table[filter+'_mag'] = fluxes2mags(self.source_table[filter+'_flux'], self.source_table[filter+'_fluxerr'])[0]
             # magnitude uncertainty magerr stays the same
+        
+        # LW images have correlated pixels resulting in underestimate of uncertainties
+        # Casertano et al. (2000)
+        # http://www.ifa.hawaii.edu/~rgal/science/sextractor_notes.html
+        # flux_err_correct ~ flux_err_initial / sqrt(F_A)
+        s = scale_drizzle = 0.5  # 0.03" output / 0.06" input pixels
+        p = pixfrac = 1  # ?? well, 1 gives largest inflation
+        # and should probably inflate more due to PSF convolution
+        sqrt_F_A = (s/p) * (1 - (s / (3*p)))
+        print(sqrt_F_A)
+        
+        for i, filt in enumerate(self.filters):
+            if self.wavelengths[i] > 2.4 * u.um:
+                self.source_table[filter+'_fluxerr'] /= sqrt_F_A
