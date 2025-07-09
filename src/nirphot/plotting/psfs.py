@@ -9,6 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def imshow_with_mouseover(image, ax=None, *args, **kwargs):
     """Wrapper for matplotlib imshow that displays the value under the
     cursor position
@@ -20,7 +21,7 @@ def imshow_with_mouseover(image, ax=None, *args, **kwargs):
     if ax is None:
         ax = plt.gca()
     ax.imshow(image, *args, **kwargs)
-    aximage = ax.images[0].properties()['array']
+    aximage = ax.images[0].properties()["array"]
     # need to account for half pixel offset of array coordinates for mouseover relative to pixel center,
     # so that the whole pixel from e.g. ( 1.5, 1.5) to (2.5, 2.5) is labeled with the coordinates of pixel (2,2)
 
@@ -43,13 +44,29 @@ def imshow_with_mouseover(image, ax=None, *args, **kwargs):
     ax.format_coord = report_pixel
     return ax
 
-def display_psf(hdulist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
-                scale='log', cmap=None, title=None, imagecrop=None,
-                adjust_for_oversampling=False, normalize='None',
-                crosshairs=False, markcentroid=False, colorbar=True,
-                colorbar_orientation='vertical', pixelscale='PIXELSCL',
-                ax=None, return_ax=False, interpolation=None, cube_slice=None,
-                angular_coordinate_unit=u.arcsec):
+
+def display_psf(
+    hdulist_or_filename,
+    ext=0,
+    vmin=1e-7,
+    vmax=1e-1,
+    scale="log",
+    cmap=None,
+    title=None,
+    imagecrop=None,
+    adjust_for_oversampling=False,
+    normalize="None",
+    crosshairs=False,
+    markcentroid=False,
+    colorbar=True,
+    colorbar_orientation="vertical",
+    pixelscale="PIXELSCL",
+    ax=None,
+    return_ax=False,
+    interpolation=None,
+    cube_slice=None,
+    angular_coordinate_unit=u.arcsec,
+):
     """Display nicely a PSF from a given hdulist or filename
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -134,27 +151,29 @@ def display_psf(hdulist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
     # Normalization
     if adjust_for_oversampling:
         try:
-            scalefactor = hdulist[ext].header['OVERSAMP'] ** 2
+            scalefactor = hdulist[ext].header["OVERSAMP"] ** 2
         except KeyError:
-            logger.error("Could not determine oversampling scale factor; "
-                       "therefore NOT rescaling fluxes.")
+            logger.error(
+                "Could not determine oversampling scale factor; "
+                "therefore NOT rescaling fluxes."
+            )
             scalefactor = 1
         im = im0 * scalefactor
     else:
         # don't change normalization of actual input array, work with a copy!
         im = im0.copy()
 
-    if normalize.lower() == 'peak':
+    if normalize.lower() == "peak":
         logger.debug("Displaying image normalized to peak = 1")
         im /= im.max()
-    elif normalize.lower() == 'total':
+    elif normalize.lower() == "total":
         logger.debug("Displaying image normalized to PSF total = 1")
         im /= im.sum()
-    
+
     # make 0s NaNs to avoid autoscaling issues
     im[im == 0] = np.nan
 
-    if scale == 'linear':
+    if scale == "linear":
         norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     else:
         norm = matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
@@ -177,6 +196,7 @@ def display_psf(hdulist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
 
     if cmap is None:
         import poppy
+
         cmap = getattr(matplotlib.cm, poppy.conf.cmap_sequential)
     # update and get (or create) image axes
     ax = imshow_with_mouseover(
@@ -186,7 +206,7 @@ def display_psf(hdulist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
         norm=norm,
         ax=ax,
         interpolation=interpolation,
-        origin='lower'
+        origin="lower",
     )
     ax.set_xlabel(unit_label)
 
@@ -196,11 +216,14 @@ def display_psf(hdulist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
     ax.set_xbound(-halffov_x, halffov_x)
     ax.set_ybound(-halffov_y, halffov_y)
     if crosshairs:
-        ax.axhline(0, ls=':', color='k')
-        ax.axvline(0, ls=':', color='k')
+        ax.axhline(0, ls=":", color="k")
+        ax.axvline(0, ls=":", color="k")
     if title is None:
         try:
-            fspec = "%s, %s" % (hdulist[ext].header['INSTRUME'], hdulist[ext].header['FILTER'])
+            fspec = "%s, %s" % (
+                hdulist[ext].header["INSTRUME"],
+                hdulist[ext].header["FILTER"],
+            )
         except KeyError:
             fspec = str(hdulist_or_filename)
         title = "PSF sim for " + fspec
@@ -211,27 +234,22 @@ def display_psf(hdulist_or_filename, ext=0, vmin=1e-7, vmax=1e-1,
             # Reuse existing colorbar axes (Issue #21)
             colorbar_axes = ax.images[0].colorbar.ax
             cb = plt.colorbar(
-                ax.images[0],
-                ax=ax,
-                cax=colorbar_axes,
-                orientation=colorbar_orientation
+                ax.images[0], ax=ax, cax=colorbar_axes, orientation=colorbar_orientation
             )
         else:
-            cb = plt.colorbar(
-                ax.images[0],
-                ax=ax,
-                orientation=colorbar_orientation
+            cb = plt.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
+        if scale.lower() == "log":
+            ticks = np.logspace(
+                np.log10(vmin), np.log10(vmax), int(np.round(np.log10(vmax / vmin) + 1))
             )
-        if scale.lower() == 'log':
-            ticks = np.logspace(np.log10(vmin), np.log10(vmax), int(np.round(np.log10(vmax / vmin) + 1)))
-            if colorbar_orientation == 'horizontal' and vmax == 1e-1 and vmin == 1e-8:
+            if colorbar_orientation == "horizontal" and vmax == 1e-1 and vmin == 1e-8:
                 ticks = [1e-8, 1e-6, 1e-4, 1e-2, 1e-1]  # looks better
             cb.set_ticks(ticks)
             cb.set_ticklabels(ticks)
-        if normalize.lower() == 'peak':
-            cb.set_label('Intensity relative to peak pixel')
+        if normalize.lower() == "peak":
+            cb.set_label("Intensity relative to peak pixel")
         else:
-            cb.set_label('Fractional intensity per pixel')
+            cb.set_label("Fractional intensity per pixel")
 
     if return_ax:
         if colorbar:
@@ -245,16 +263,26 @@ def save_psf_plots(hdu, path, filt, ext=None):
 
     with PdfPages(path) as pdf:
         if ext is None:
-            ext = ['DET_DIST', 'OVERDIST', 'ROTATED_OVERDIST', 'ROTATED_DET_DIST']
+            ext = ["DET_DIST", "OVERDIST", "ROTATED_OVERDIST", "ROTATED_DET_DIST"]
         for e in ext:
-            display_psf(hdu, ext=e, ax=plt.gca(), title=f'{filt} PSF {e}', return_ax=False)
+            display_psf(
+                hdu, ext=e, ax=plt.gca(), title=f"{filt} PSF {e}", return_ax=False
+            )
             pdf.savefig()
             plt.close()
-    
+
     logger.info(f"PSF plots saved to {path}")
 
 
-def display_kernel(kernel, title=None, ax=None, return_ax=False, interpolation=None, save_path=None, save=False):
+def display_kernel(
+    kernel,
+    title=None,
+    ax=None,
+    return_ax=False,
+    interpolation=None,
+    save_path=None,
+    save=False,
+):
     """Display nicely a PSF kernel
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -284,16 +312,18 @@ def display_kernel(kernel, title=None, ax=None, return_ax=False, interpolation=N
     kernel[kernel == 0] = np.nan
     norm = ImageNormalize(
         kernel, interval=PercentileInterval(98), stretch=LinearStretch()
-        )
+    )
 
-    ax.imshow(kernel, cmap='viridis', interpolation=interpolation, origin='lower', norm=norm)
+    ax.imshow(
+        kernel, cmap="viridis", interpolation=interpolation, origin="lower", norm=norm
+    )
     ax.set_title(title)
-    ax.set_xlabel('X [pixels]')
-    ax.set_ylabel('Y [pixels]')
+    ax.set_xlabel("X [pixels]")
+    ax.set_ylabel("Y [pixels]")
 
     if return_ax:
         return ax
-    
+
     if save:
         try:
             plt.savefig(save_path)

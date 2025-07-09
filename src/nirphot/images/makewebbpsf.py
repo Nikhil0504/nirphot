@@ -113,12 +113,10 @@ def rotate_webbpsf(psf, img_hdu=None, ext=None, pa=None):
         psf["ROTATED_OVERDIST"].header["COMMENT"] = f"Rotated by PA={angle} degrees"
         psf["ROTATED_DET_DIST"].header["COMMENT"] = f"Rotated by PA={angle} degrees"
 
-
     except Exception as e:
         logger.error(f"Failed to rotate WebbPSF by PA={angle}: {e}")
         raise RuntimeError(f"Failed to rotate WebbPSF by PA={angle}: {e}")
-    
-    logger.info(f"WebbPSF rotated by PA={angle}")
-    
-    return psf
 
+    logger.info(f"WebbPSF rotated by PA={angle}")
+
+    return psf
