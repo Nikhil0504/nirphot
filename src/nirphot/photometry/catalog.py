@@ -127,6 +127,10 @@ class PhotometryDetectionCatalog:
         self.catalog_table.rename_column('xcentroid', 'x')
         self.catalog_table.rename_column('ycentroid', 'y')
         
+        # Replace sky_centroid with ra, dec
+        self.catalog_table['ra']  = self.catalog_table['sky_centroid'].ra.degree  * u.degree
+        self.catalog_table['dec'] = self.catalog_table['sky_centroid'].dec.degree * u.degree
+        
         if self.save:
             fp_catalog = generate_filename(f'{self.run}_detection_catalog', 'ecsv', DATA_DIR)
             self.catalog_table.write(fp_catalog, format='ascii.ecsv')

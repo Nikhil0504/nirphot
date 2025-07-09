@@ -67,8 +67,30 @@ class ComputePhotometry:
         fp = generate_filename(f'{self.run}_isophotal_catalog', 'ecsv', DATA_DIR)
         self.source_table.write(fp, format='ascii.ecsv', overwrite=True)
         
-    
+    def _reformat_output(self):
+        old_columns = self.source_table.colnames
+        
+        # Reorder columns
+        i = old_columns.index('segment_flux')
+        j = old_columns.index(self.filters[0]+'_flux')
+        columns = old_columns[:i] # detection catalog (except source_sum & kron_flux)
+        columns += old_columns[-1:]  # total_flux_cor
+        columns += old_columns[j:-1] # photometry in all filters
+        
+        self.source_table = self.source_table[columns]
+        
+        for column in columns:
+            self.source_table[column].info.format = '.4f'
+        
+        self.source_table['ra'].info.format  = '11.7f'
+        self.source_table['dec'].info.format = ' 11.7f'
+        
+        self.source_table['id'].info.format = 'd'
+        self.source_table['area'].info.format = '.0f'  # 'd' raises error : incompatible with units (pix2)
+        
     def _add_flux_corrections(self):
+        # Color corrections are perfomed as described here: https://www.stsci.edu/~dcoe/ColorPro/color
+
         reference_flux_auto = self.source_table['kron_flux']    # Kron total flux estimate
         reference_flux_iso  = self.source_table['segment_flux'] # flux in isophotal aperture defined by detection segment
         
