@@ -1,0 +1,4 @@
+[paths]
+ROOT_DIR = "~"
+DATA_DIR = "~/Data/"
+PLOT_DIR = "./plots"
